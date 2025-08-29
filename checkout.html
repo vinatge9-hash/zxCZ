@@ -1,0 +1,141 @@
+<!--  -->
+<!--  -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:300,400,500,600,700&family=Inter:300,400,500,600,700&display=swap" rel="stylesheet">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Niyantri Coffee - Checkout</title>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root { --coffee-primary: #6f4e37; --coffee-cream: #f8f2e9; }
+      body { font-family: 'Inter', sans-serif; }
+      h1 { font-family: 'Merriweather', serif; }
+    </style>
+  </head>
+  <body style="font-family: 'Merriweather', sans-serif;" class="min-h-screen bg-cream-100">
+    <header class="w-full bg-cover bg-center" style="background-image: linear-gradient(to right, rgba(111,78,55,.95), rgba(111,78,55,.75));">
+      <nav class="max-w-full px-4 py-4 flex items-center justify-between text-white">
+        <div class="text-xl font-semibold tracking-wide">Niyantri Coffee</div>
+        <ul class="flex space-x-6">
+          <li><a href="./index.html" class="hover:underline">Home</a></li>
+          <li><a href="./menu.html" class="hover:underline">Menu</a></li>
+          <li><a href="./cart.html" class="hover:underline">Cart</a></li>
+          <li><a href="./checkout.html" class="hover:underline">Checkout</a></li>
+          <li><a href="./about.html" class="hover:underline">About</a></li>
+          <li><a href="./contact.html" class="hover:underline">Contact</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main class="w-full px-6 py-6">
+      <h1 class="text-3xl mb-4">Checkout</h1>
+      <section id="checkout-layout" class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+        <div class="bg-white p-4 rounded-lg shadow">
+          <h2 class="font-semibold mb-2">Your Order</h2>
+          <div id="order-summary" class="text-sm text-gray-700"></div>
+          <div class="mt-4 text-sm text-gray-600" id="order-total"></div>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow">
+          <h2 class="font-semibold mb-2">Customer Details</h2>
+          <form id="checkout-form" class="grid gap-3">
+            <input class="p-2 border rounded" placeholder="Full name" id="cust-name" required />
+            <input class="p-2 border rounded" placeholder="Email" type="email" id="cust-email" required />
+            <input class="p-2 border rounded" placeholder="Phone" id="cust-phone" />
+            <input class="p-2 border rounded" placeholder="Address" id="cust-address" required />
+            <div id="payment-area" class="mt-2"></div>
+          </form>
+        </div>
+      </section>
+      <div class="mt-6 text-sm text-gray-600">Note: This page uses PayPal Sandbox for a realistic checkout flow.</div>
+    </main>
+
+    <footer class="w-full py-6 text-center text-sm text-gray-600 bg-gray-100">
+      © 2025 Niyantri Coffee. All rights reserved.
+    </footer>
+
+    <script>
+      // simple client-side cart fetch
+      function getCart() {
+        const raw = localStorage.getItem('nyan_cart');
+        return raw ? JSON.parse(raw) : [];
+      }
+      function calcTotal(cart) {
+        return cart.reduce((sum, it) => sum + it.price * it.qty, 0);
+      }
+      function renderOrder() {
+        const cart = getCart();
+        const summary = document.getElementById('order-summary');
+        summary.innerHTML = cart.map(i => `<div>${i.name} × ${i.qty} - ${i.price.toFixed(2)}</div>`).join('') || '<div>Your cart is empty.</div>';
+        const total = calcTotal(cart);
+        document.getElementById('order-total').textContent = 'Total: $' + total.toFixed(2);
+        return total;
+      }
+      function apiCheckout(order) {
+        // mock API call to submit order
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({ success: true, orderId: 'ON-' + Math.floor(Math.random()*100000) });
+          }, 500);
+        });
+      }
+      // PayPal setup (sandbox)
+      function loadPayPal(total, onApprove) {
+        // create placeholder container if not present
+        const area = document.getElementById('payment-area');
+        area.innerHTML = '';
+        const container = document.createElement('div');
+        container.id = 'paypal-button-container';
+        area.appendChild(container);
+        // load SDK and render buttons
+        const script = document.createElement('script');
+        script.src = 'https://www.paypal.com/sdk/js?client-id=sb&currency=USD';
+        script.onload = () => {
+          if (typeof paypal !== 'undefined') {
+            paypal.Buttons({
+              style: { layout: 'vertical', color: 'gold', shape: 'pill' },
+              createOrder: (data, actions) => {
+                return actions.order.create({ purchase_units: [{ amount: { value: total.toFixed(2) } }] });
+              },
+              onApprove: (data, actions) => {
+                return actions.order.capture().then(details => {
+                  onApprove(details);
+                });
+              }
+            }).render('#paypal-button-container');
+          }
+        };
+        document.head.appendChild(script);
+      }
+
+      (function init(){
+        const total = renderOrder();
+        // build the PayPal flow after user fills form; for simplicity, always render after load
+        loadPayPal(total, (details) => {
+          // gather data and submit via mock API
+          const name = document.getElementById('cust-name').value;
+          const email = document.getElementById('cust-email').value;
+          const address = document.getElementById('cust-address').value;
+          const order = {
+            customer: { name, email, address },
+            items: getCart(),
+            total: total,
+            payment: 'PayPal',
+            status: 'Paid'
+          };
+          apiCheckout(order).then(res => {
+            if (res && res.success) {
+              localStorage.removeItem('nyan_cart');
+              alert('Order placed successfully! Order ID: ' + res.orderId);
+              window.location.href = './index.html';
+            }
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>
